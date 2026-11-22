@@ -1,0 +1,1 @@
+"""Link create / read models."""
