@@ -52,7 +52,7 @@ Python 3.12, uv, FastAPI, Pydantic, PostgreSQL, httpx (async), pytest + respx, D
 ## Commands
 - Install / rebuild env: `uv sync`
 - Add a library: `uv add <pkg>` (never `pip install`)
-- Run API locally: `uv run uvicorn <package>.main:app --reload` (package name TBD once the layout is final)
+- Run API locally: `uv run uvicorn gcpbasicdeployment.main:app --reload`
 - Tests: `uv run pytest`
 - Run with DB: `docker compose up --build`
 - Deploy: `gcloud run deploy <service> --image <artifact-registry-image> --region <region>` (project, region and service names TBD)
