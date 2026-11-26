@@ -1,5 +1,7 @@
 """Shared fixtures: in-memory SQLite stands in for Postgres; no real network."""
 
+import ipaddress
+import socket
 from collections.abc import AsyncIterator
 
 import pytest
@@ -16,6 +18,31 @@ from sqlalchemy.pool import StaticPool
 from gcpbasicdeployment.db.models import Base
 from gcpbasicdeployment.db.session import get_session
 from gcpbasicdeployment.main import app
+from gcpbasicdeployment.services import url_safety
+
+PUBLIC_IP = "93.184.216.34"
+
+
+@pytest.fixture(autouse=True)
+def fake_dns(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
+    """Replace DNS for every test. Add names to the returned dict as needed."""
+    records: dict[str, list[str]] = {
+        "example.com": [PUBLIC_IP],
+        "localhost": ["::1", "127.0.0.1"],
+    }
+
+    async def lookup(host: str, port: int) -> list[str]:
+        try:
+            ipaddress.ip_address(host)
+            return [host]
+        except ValueError:
+            pass
+        if host not in records:
+            raise socket.gaierror("name not known")
+        return records[host]
+
+    monkeypatch.setattr(url_safety, "_lookup", lookup)
+    return records
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ from gcpbasicdeployment.core.config import get_settings
 from gcpbasicdeployment.core.exceptions import register_exception_handlers
 from gcpbasicdeployment.core.logging import setup_logging
 from gcpbasicdeployment.db.session import create_tables
-from gcpbasicdeployment.routers import health, links
+from gcpbasicdeployment.routers import checks, health, links
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(links.router)
+    app.include_router(checks.router)
     logger.info("app created")
     return app
 
