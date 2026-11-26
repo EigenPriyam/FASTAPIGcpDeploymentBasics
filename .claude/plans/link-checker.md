@@ -87,7 +87,9 @@ Commit the spec (status set to Approved, extra file row added) and this plan.
   | other `httpx.RequestError` | `connection` |
   | anything else (`logger.exception`) | `unknown` |
 
-  An unparseable `Location` (`httpx.InvalidURL`) is `blocked_url`.
+  A garbled `Location` header is usually rejected by httpx itself and recorded as `connection`
+  (or `dns`, `unknown` or `too_many_redirects`, depending on how it parses). It is never fetched
+  without passing the guard.
 - `async def check_many(urls, timeout, max_concurrency) -> list[Outcome]`: one client, one
   `Semaphore`, `asyncio.gather`. The timeout starts after the semaphore slot is taken.
   Results come back in the same order as `urls`.
