@@ -1,6 +1,7 @@
-"""Queries for the checks table (and the link status that a check updates)."""
+"""Queries for the checks table (and the link fields that a check updates)."""
 
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,18 +11,26 @@ from gcpbasicdeployment.db.models import Check, Link
 from gcpbasicdeployment.repositories import links
 
 
-async def get_target(session: AsyncSession, link_id: int) -> tuple[int, str]:
-    """(id, url) of one link. Ends the transaction before the caller goes online."""
+class Target(NamedTuple):
+    id: int
+    url: str
+    archive_url: str | None
+
+
+async def get_target(session: AsyncSession, link_id: int) -> Target:
+    """One link to check. Ends the transaction before the caller goes online."""
     link = await links.get(session, link_id)
-    target = (link.id, link.url)
+    target = Target(link.id, link.url, link.archive_url)
     await session.commit()
     return target
 
 
-async def list_targets(session: AsyncSession) -> list[tuple[int, str]]:
-    """(id, url) of every link. Ends the transaction before the caller goes online."""
-    result = await session.execute(select(Link.id, Link.url).order_by(Link.id))
-    targets = [(row.id, row.url) for row in result]
+async def list_targets(session: AsyncSession) -> list[Target]:
+    """Every link to check. Ends the transaction before the caller goes online."""
+    result = await session.execute(
+        select(Link.id, Link.url, Link.archive_url).order_by(Link.id)
+    )
+    targets = [Target(row.id, row.url, row.archive_url) for row in result]
     await session.commit()
     return targets
 
@@ -34,14 +43,24 @@ async def save(
     status_code: int | None,
     latency_ms: int | None,
     error: str | None,
-) -> Check:
-    """Insert a check and update the link's status in one transaction."""
-    updated = await session.scalar(
+    new_archive_url: str | None = None,
+    clear_archive_url: bool = False,
+) -> tuple[Check, str | None]:
+    """Insert a check and update the link in one transaction.
+
+    Returns the check and the link's stored archive_url, which is only written when
+    setting or clearing it.
+    """
+    values: dict[str, str | None] = {"last_status": last_status}
+    if new_archive_url is not None or clear_archive_url:
+        values["archive_url"] = new_archive_url
+    result = await session.execute(
         update(Link)
         .where(Link.id == link_id)
-        .values(last_status=last_status)
-        .returning(Link.id)
+        .values(values)
+        .returning(Link.archive_url)
     )
+    updated = result.one_or_none()
     if updated is None:
         await session.rollback()
         raise NotFoundError(f"Link {link_id} not found")
@@ -51,7 +70,7 @@ async def save(
     session.add(check)
     await session.commit()
     await session.refresh(check)  # load server-generated checked_at
-    return check
+    return check, updated.archive_url
 
 
 async def list_for_link(session: AsyncSession, link_id: int) -> Sequence[Check]:

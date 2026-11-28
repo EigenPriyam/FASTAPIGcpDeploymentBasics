@@ -20,6 +20,7 @@ class CheckResult(BaseModel):
     link_id: int
     last_status: str
     check: CheckRead
+    archive_url: str | None
 
 
 class CheckAllResult(BaseModel):
